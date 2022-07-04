@@ -1,0 +1,23 @@
+FROM mcr.microsoft.com/dotnet/aspnet:3.1 AS base
+WORKDIR /app
+EXPOSE 80
+
+FROM mcr.microsoft.com/dotnet/sdk:3.1 AS build
+WORKDIR /src
+COPY ["Code/remo.Api/remo.Api.csproj", "Code/remo.Api/"]
+COPY ["Code/remo.Business/remo.Business.csproj", "Code/remo.Business/"]
+COPY ["Code/remo.Data/remo.Data.csproj", "Code/remo.Data/"]
+COPY ["Code/remo.Entities/remo.Entities.csproj", "Code/remo.Entities/"]
+COPY ["Code/remo.Test.Api/remo.Test.Api.csproj", "Code/remo.Test.Api/"]
+COPY ["Code/remo.Test.Business/remo.Test.Business.csproj", "Code/remo.Test.Business/"]
+RUN dotnet restore "Code/remo.Api/remo.Api.csproj"
+COPY . .
+WORKDIR "/src/Code/remo.Api"
+RUN dotnet build "remo.Api.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "remo.Api.csproj" -c Release -o /app/publish
+
+WORKDIR /src
+RUN dotnet test --results-directory /testresults --logger "trx;LogFileName=testresults.Api.trx" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=/testresults/coverage/ /p:MergeWith=/testresults/coverage/coverage.json "Code/remo.Test.Api/remo.Test.Api.csproj"
+RUN dotnet test --results-directory /testresults --logger "trx;LogFileName=testresults.Api.trx" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=/testresults/coverage/ /p:MergeWith=/testresults/coverage/coverage.json "Code/remo.Test.Business/remo.Test.Business.csproj"
